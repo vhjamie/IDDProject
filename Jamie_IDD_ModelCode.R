@@ -6,10 +6,16 @@ simplified_coupled_HIV_func <- function(t, y, param){
     theta = param['theta']# rate of starting sex work
     delta = param['delta'] # rate of non-AIDS-related mortality
   # transmission
-    betaSG = param['betaSG']
-    betaGG = param['betaGG']
-    betaSS = param['betaSS']
-  
+    beta = param['beta'] 
+    c_GS = param['c_GS'] # contact rate G>S
+    c_GG = param['c_GG'] # contact rate within general population
+    c_SG = param['c_SG'] # contact rate S>G
+    sigma_GS = param['sigma_GS'] # parameter for type of contact risk %>% taking into account interventions like condom use etc.
+    sigma_GG = param['sigma_GG'] # parameter for type of contact risk %>% taking into account interventions like condom use etc.
+    sigma_SG = param['sigma_SG'] # parameter for type of contact risk %>% taking into account interventions like condom use etc.
+    betaGS = param['beta'] * param['c_GS'] * param['sigma_GS']
+    betaGG = param['beta'] * param['c_GG'] * param['sigma_GG']
+    betaSG = param['beta'] * param['c_SG'] * param['sigma_SG']
   # death rates
     mu1 = param['mu1'] # AIDS-related mortality rate _ without ART
     mu2 = param['mu2'] # AIDS-related mortality rate _ with ART
@@ -27,13 +33,14 @@ simplified_coupled_HIV_func <- function(t, y, param){
     PrEP_g = y['PrEP_g']; PrEP_s = y['PrEP_s']; D = y['D']
     N = y['S_g'] + y['I_g'] + y['A_g'] + y['S_s'] + y['I_s'] + 
       y['A_s'] + y['PrEP_g'] + y['PrEP_s']
+    
 ## Equations for the general population
   dS_g = -(betaGG*I_g + betaSG*I_s)*S_g - tau_prep_g*S_g - delta*S_g - theta*S_g + alpha*N + phi_prep_g*PrEP_g
-  dS_s = -(betaSG*I_g + betaSS*I_s)*S_s - tau_prep_s*S_s - delta*S_s + theta*S_g + phi_prep_s*PrEP_s
+  dS_s = -(betaGS*I_g)*S_s - tau_prep_s*S_s - delta*S_s + theta*S_g + phi_prep_s*PrEP_s
   dPrEP_g = -(phi_prep_g)*PrEP_g + tau_prep_g*S_g - delta*PrEP_g
   dPrEP_s = -(phi_prep_s)*PrEP_s + tau_prep_s*S_s - delta*PrEP_s
-  dI_g = -delta*I_g - mu1*I_g - tau_art*I_g + (betaGG*I_g + betaSG*I_s)*S_g + phi_art*A_g 
-  dI_s = -delta*I_s - mu1*I_s - tau_art*I_s + (betaSG*I_g + betaSS*I_s)*S_s + phi_art*A_s 
+  dI_g = -delta*I_g - mu1*I_g - tau_art*I_g + (beta*c_GG*sigma_GG*I_g + beta*c_SG*sigma_SG*I_s)*S_g + phi_art*A_g 
+  dI_s = -delta*I_s - mu1*I_s - tau_art*I_s + (beta*c_GS*sigma_GS*I_g)*S_s + phi_art*A_s 
   dA_g = -delta*A_g - mu2*A_g - phi_art*A_g + tau_art*I_g
   dA_s = -delta*A_s - mu2*A_s - phi_art*A_s + tau_art*I_s
   dD = mu1*(I_g + I_s) + mu2*(A_g + A_s)
@@ -43,15 +50,14 @@ simplified_coupled_HIV_func <- function(t, y, param){
 
 ## Assume frequency dependent because R0 does not change based on population size
   
-run_simp_coupled_HIV_function <- function(betaSS, betaSG, betaGG, alpha, theta, delta, mu1, mu2, tau_prep_g, tau_prep_s, phi_prep_g, phi_prep_s, tau_art, phi_art, initial.state, max.time, freq.dependent) {
+run_simp_coupled_HIV_function <- function(beta, c_GS, c_GG, c_SG, sigma_GS, sigma_GG, sigma_SG, alpha, theta, delta, mu1, mu2, tau_prep_g, tau_prep_s, phi_prep_g, phi_prep_s, tau_art, phi_art, initial.state, max.time, freq.dependent) {
   # Determine beta divisor for each sub population
   beta_divisor_g <- ifelse(freq.dependent == TRUE, initial.state["S_g"] + initial.state["I_g"] + initial.state["A_g"] + initial.state["PrEP_g"], 1)
   beta_divisor_s <- ifelse(freq.dependent == TRUE, initial.state["S_s"] + initial.state["I_s"] + initial.state["A_s"] + initial.state["PrEP_s"], 1)
-  beta_divisor_mixing <- ifelse(freq.dependent == TRUE, initial.state["S_s"] + initial.state["I_s"] + initial.state["A_s"] + initial.state["PrEP_s"] + initial.state["S_g"] + initial.state["I_g"] + initial.state["A_g"] + initial.state["PrEP_g"], 1)
   
   # create param vector to solve the system of equations
-  param <- c(betaSS = betaSS/beta_divisor_s, 
-             betaSG = betaSG/beta_divisor_mixing, 
+  param <- c(betaGS = betaGS/beta_divisor_s,
+             betaSG = betaSG/beta_divisor_g, 
              betaGG = betaGG/beta_divisor_g, 
              alpha = alpha, 
              theta = theta, 
@@ -74,9 +80,13 @@ run_simp_coupled_HIV_function <- function(betaSS, betaSG, betaGG, alpha, theta, 
 initial.state <- c("S_g" = 70000000, "I_g" = 400000, "A_g" = 1, "PrEP_g" = 1,
                    "S_s" = 480000, "I_s" = 120000, "A_s" = 1, "PrEP_s" = 1, "D" = 0)
 
-scenario1 <- run_simp_coupled_HIV_function(betaSS = 0.002900, 
-                                           betaSG = 0.00020, 
-                                           betaGG = 0.0005,
+scenario1 <- run_simp_coupled_HIV_function(beta = 0.0005,
+                                           c_GS = ,
+                                           c_GG = ,
+                                           c_SG = ,
+                                           sigma_GS = ,
+                                           sigma_GG = ,
+                                           sigma_SG = ,
                                            alpha = 0.009532, 
                                            theta = 0.00001, 
                                            delta = 0.007, 
