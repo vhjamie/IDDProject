@@ -25,8 +25,10 @@ simplified_coupled_HIV_func <- function(t, y, param){
     phi_prep_g = param['phi_prep_g']# rate of prep discontinuation - general population
     phi_prep_s = param['phi_prep_s']# rate of prep discontinuation - SWs population
   # art
-    tau_art = param['tau_art']# rate of initiating ART
-    phi_art = param['phi_art']# rate of ART discontinuation
+    tau_art_g = param['tau_art_g']# rate of initiating ART
+    phi_art_g = param['phi_art_g']# rate of ART discontinuation
+    tau_art_s = param['tau_art_s']# rate of initiating ART
+    phi_art_s = param['phi_art_s']# rate of ART discontinuation
 ## defining states
     S_g = y['S_g']; I_g = y['I_g']; A_g = y['A_g'] 
     S_s = y['S_s']; I_s = y['I_s']; A_s = y['A_s']
@@ -39,10 +41,10 @@ simplified_coupled_HIV_func <- function(t, y, param){
   dS_s = -(betaGS*I_g)*S_s - tau_prep_s*S_s - delta*S_s + theta*S_g + phi_prep_s*PrEP_s
   dPrEP_g = -(phi_prep_g)*PrEP_g + tau_prep_g*S_g - delta*PrEP_g
   dPrEP_s = -(phi_prep_s)*PrEP_s + tau_prep_s*S_s - delta*PrEP_s
-  dI_g = -delta*I_g - mu1*I_g - tau_art*I_g + (beta*c_GG*sigma_GG*I_g + 0.5*beta*c_SG*sigma_SG*I_s)*S_g + phi_art*A_g - theta*I_g
-  dI_s = -delta*I_s - mu1*I_s - tau_art*I_s + (beta*c_GS*sigma_GS*I_g)*S_s + phi_art*A_s + theta*I_g
-  dA_g = -delta*A_g - mu2*A_g - phi_art*A_g + tau_art*I_g
-  dA_s = -delta*A_s - mu2*A_s - phi_art*A_s + tau_art*I_s
+  dI_g = -delta*I_g - mu1*I_g - tau_art_g*I_g + (beta*c_GG*sigma_GG*I_g + 0.5*beta*c_SG*sigma_SG*I_s)*S_g + phi_art_g*A_g - theta*I_g
+  dI_s = -delta*I_s - mu1*I_s - tau_art_s*I_s + (beta*c_GS*sigma_GS*I_g)*S_s + phi_art_s*A_s + theta*I_g
+  dA_g = -delta*A_g - mu2*A_g - phi_art_g*A_g + tau_art_g*I_g
+  dA_s = -delta*A_s - mu2*A_s - phi_art_s*A_s + tau_art_s*I_s
   dD = mu1*(I_g + I_s) + mu2*(A_g + A_s)
   ## return system of differential equation
   return(list(c(dS_g, dI_g, dA_g, dPrEP_g,  dS_s, dI_s, dA_s, dPrEP_s, dD)))
@@ -50,7 +52,7 @@ simplified_coupled_HIV_func <- function(t, y, param){
 
 ## Assume frequency dependent because R0 does not change based on population size
   
-run_simp_coupled_HIV_function <- function(beta, c_GS, c_GG, c_SG, sigma_GS, sigma_GG, sigma_SG, alpha, theta, delta, mu1, mu2, tau_prep_g, tau_prep_s, phi_prep_g, phi_prep_s, tau_art, phi_art, initial.state, max.time, freq.dependent) {
+run_simp_coupled_HIV_function <- function(beta, c_GS, c_GG, c_SG, sigma_GS, sigma_GG, sigma_SG, alpha, theta, delta, mu1, mu2, tau_prep_g, tau_prep_s, phi_prep_g, phi_prep_s, tau_art_g, tau_art_s, phi_art_g, phi_art_s, initial.state, max.time, freq.dependent) {
   # Determine beta divisor for each sub population
   beta_divisor_g <- ifelse(freq.dependent == TRUE, initial.state["S_g"] + initial.state["I_g"] + initial.state["A_g"] + initial.state["PrEP_g"], 1)
   beta_divisor_s <- ifelse(freq.dependent == TRUE, initial.state["S_s"] + initial.state["I_s"] + initial.state["A_s"] + initial.state["PrEP_s"], 1)
@@ -72,8 +74,10 @@ run_simp_coupled_HIV_function <- function(beta, c_GS, c_GG, c_SG, sigma_GS, sigm
              tau_prep_s = tau_prep_s,
              phi_prep_g = phi_prep_g,
              phi_prep_s = phi_prep_s,
-             tau_art = tau_art,
-             phi_art = phi_art)
+             tau_art_g = tau_art_g,
+             tau_art_s = tau_art_s,
+             phi_art_g = phi_art_g,
+             phi_art_s = phi_art_s)
   times <- seq(0, max.time, 1)
   
   #solve the system of equations
@@ -83,7 +87,57 @@ run_simp_coupled_HIV_function <- function(beta, c_GS, c_GG, c_SG, sigma_GS, sigm
 }
 initial.state <- c("S_g" = 70000000, "I_g" = 56000, "A_g" = 344000, "PrEP_g" = 12768,
                    "S_s" = 480000, "I_s" = 16800, "A_s" = 103200, "PrEP_s" = 38304, "D" = 0)
+# What actually happens - as is - data from before the policy was applied
+scenario1 <- run_simp_coupled_HIV_function(beta = 0.0004,
+                                           c_GS = 17.7,
+                                           c_GG = 1,
+                                           c_SG = 1.25,
+                                           sigma_GS = 0.36,
+                                           sigma_GG = 0.27,
+                                           sigma_SG = 0.18,
+                                           alpha = 0.009532, 
+                                           theta = 0.00001, 
+                                           delta = 0.007, 
+                                           mu1 = 0.2149,
+                                           mu2 = 0.04228,
+                                           tau_prep_g = 0.0000214,
+                                           tau_prep_s = 0.00583,
+                                           phi_prep_g = 0.015, # Need to test for sensitivity of a range of retention rates
+                                           phi_prep_s = 0.015, # 
+                                           tau_art_g = 0.3605,
+                                           phi_art_g = 0.015,
+                                           tau_art_s = 0.3605,
+                                           phi_art_s = 0.015,
+                                           initial.state = initial.state,
+                                           max.time = 10,
+                                           freq.dependent = TRUE)
 
+# Scenario with lower ART uptake and retention - Projection scenario for policy change
+scenario2 <- run_simp_coupled_HIV_function(beta = 0.0004,
+                                           c_GS = 17.7,
+                                           c_GG = 1,
+                                           c_SG = 1.25,
+                                           sigma_GS = 0.36,
+                                           sigma_GG = 0.27,
+                                           sigma_SG = 0.18,
+                                           alpha = 0.009532, 
+                                           theta = 0.00001, 
+                                           delta = 0.007, 
+                                           mu1 = 0.2149,
+                                           mu2 = 0.04228,
+                                           tau_prep_g = 0.0000214,
+                                           tau_prep_s = 0.00583,
+                                           phi_prep_g = 0.015, # Need to test for sensitivity of a range of retention rates
+                                           phi_prep_s = 0.015, # 
+                                           tau_art_g = 0.712,
+                                           phi_art_g = 0.015,
+                                           tau_art_s = 0.712,
+                                           phi_art_s = 0.015,
+                                           initial.state = initial.state,
+                                           max.time = 10,
+                                           freq.dependent = TRUE)
+
+# 
 scenario1 <- run_simp_coupled_HIV_function(beta = 0.0004,
                                            c_GS = 17.7,
                                            c_GG = 1,
@@ -106,4 +160,8 @@ scenario1 <- run_simp_coupled_HIV_function(beta = 0.0004,
                                            max.time = 10,
                                            freq.dependent = TRUE)
 
-  
+## Things to analyze:
+# Scenarios should have one that has differential intervention between two populations
+# Deaths averted between scenarios
+# Prevalence in the two populations
+# Incidence 
