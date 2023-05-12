@@ -39,8 +39,8 @@ simplified_coupled_HIV_func <- function(t, y, param){
   dS_s = -(betaGS*I_g)*S_s - tau_prep_s*S_s - delta*S_s + theta*S_g + phi_prep_s*PrEP_s
   dPrEP_g = -(phi_prep_g)*PrEP_g + tau_prep_g*S_g - delta*PrEP_g
   dPrEP_s = -(phi_prep_s)*PrEP_s + tau_prep_s*S_s - delta*PrEP_s
-  dI_g = -delta*I_g - mu1*I_g - tau_art*I_g + (beta*c_GG*sigma_GG*I_g + beta*c_SG*sigma_SG*I_s)*S_g + phi_art*A_g 
-  dI_s = -delta*I_s - mu1*I_s - tau_art*I_s + (beta*c_GS*sigma_GS*I_g)*S_s + phi_art*A_s 
+  dI_g = -delta*I_g - mu1*I_g - tau_art*I_g + (beta*c_GG*sigma_GG*I_g + 0.5*beta*c_SG*sigma_SG*I_s)*S_g + phi_art*A_g - theta*I_g
+  dI_s = -delta*I_s - mu1*I_s - tau_art*I_s + (beta*c_GS*sigma_GS*I_g)*S_s + phi_art*A_s + theta*I_g
   dA_g = -delta*A_g - mu2*A_g - phi_art*A_g + tau_art*I_g
   dA_s = -delta*A_s - mu2*A_s - phi_art*A_s + tau_art*I_s
   dD = mu1*(I_g + I_s) + mu2*(A_g + A_s)
@@ -56,9 +56,13 @@ run_simp_coupled_HIV_function <- function(beta, c_GS, c_GG, c_SG, sigma_GS, sigm
   beta_divisor_s <- ifelse(freq.dependent == TRUE, initial.state["S_s"] + initial.state["I_s"] + initial.state["A_s"] + initial.state["PrEP_s"], 1)
   
   # create param vector to solve the system of equations
-  param <- c(betaGS = betaGS/beta_divisor_s,
-             betaSG = betaSG/beta_divisor_g, 
-             betaGG = betaGG/beta_divisor_g, 
+  param <- c(beta = beta,
+             c_GS = c_GS,
+             c_GG = c_GG,
+             c_SG = c_SG,
+             sigma_GS = sigma_GS/beta_divisor_s,
+             sigma_GG = sigma_GG/beta_divisor_g,
+             sigma_SG = sigma_SG/beta_divisor_g,
              alpha = alpha, 
              theta = theta, 
              delta = delta, 
@@ -77,16 +81,16 @@ run_simp_coupled_HIV_function <- function(beta, c_GS, c_GG, c_SG, sigma_GS, sigm
   
   return(as.data.frame(simplified_coupled_HIV_output))
 }
-initial.state <- c("S_g" = 70000000, "I_g" = 400000, "A_g" = 1, "PrEP_g" = 1,
-                   "S_s" = 480000, "I_s" = 120000, "A_s" = 1, "PrEP_s" = 1, "D" = 0)
+initial.state <- c("S_g" = 70000000, "I_g" = 56000, "A_g" = 344000, "PrEP_g" = 12768,
+                   "S_s" = 480000, "I_s" = 16800, "A_s" = 103200, "PrEP_s" = 38304, "D" = 0)
 
-scenario1 <- run_simp_coupled_HIV_function(beta = 0.0005,
-                                           c_GS = ,
-                                           c_GG = ,
-                                           c_SG = ,
-                                           sigma_GS = ,
-                                           sigma_GG = ,
-                                           sigma_SG = ,
+scenario1 <- run_simp_coupled_HIV_function(beta = 0.0004,
+                                           c_GS = 17.7,
+                                           c_GG = 1,
+                                           c_SG = 1.25,
+                                           sigma_GS = 0.36,
+                                           sigma_GG = 0.27,
+                                           sigma_SG = 0.18,
                                            alpha = 0.009532, 
                                            theta = 0.00001, 
                                            delta = 0.007, 
@@ -94,47 +98,12 @@ scenario1 <- run_simp_coupled_HIV_function(beta = 0.0005,
                                            mu2 = 0.04228,
                                            tau_prep_g = 0.0000214,
                                            tau_prep_s = 0.00583,
-                                           phi_prep_g = 0.73,
-                                           phi_prep_s = 0.73,
+                                           phi_prep_g = 0.015, # Need to test for sensitivity of a range of retention rates
+                                           phi_prep_s = 0.015, # 
                                            tau_art = 0.712,
-                                           phi_art = 0.247,
+                                           phi_art = 0.015,
                                            initial.state = initial.state,
-                                           max.time = 500,
+                                           max.time = 10,
                                            freq.dependent = TRUE)
 
-scenario2 <- run_simp_coupled_HIV_function(betaSS = 0.006, 
-                                           betaSG = 0.003, 
-                                           betaGG = 0.006,
-                                           alpha = 0.009532, 
-                                           theta = 0.00001, 
-                                           delta = 0.007, 
-                                           mu1 = 0.2149,
-                                           mu2 = 0.04228,
-                                           tau_prep_g = 0.0000214,
-                                           tau_prep_s = 0.00583,
-                                           phi_prep_g = 0.73,
-                                           phi_prep_s = 0.73,
-                                           tau_art = 0.712,
-                                           phi_art = 0.247,
-                                           initial.state,
-                                           max.time = 500,
-                                           freq.dependent = TRUE)
-
-
-scenario3 <- run_simp_coupled_HIV_function(betaSS = 0.6, 
-                                           betaSG = 0.3, 
-                                           betaGG = 0.6,
-                                           alpha = 0.009532, 
-                                           theta = 0.00001, 
-                                           delta = 0.007, 
-                                           mu1 = 0.2149,
-                                           mu2 = 0.04228,
-                                           tau_prep_g = 0.0000214,
-                                           tau_prep_s = 0.00583,
-                                           phi_prep_g = 0.73,
-                                           phi_prep_s = 0.73,
-                                           tau_art = 0.712,
-                                           phi_art = 0.247,
-                                           initial.state,
-                                           max.time = 500,
-                                           freq.dependent = TRUE)
+  
