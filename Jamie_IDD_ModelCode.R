@@ -37,12 +37,12 @@ simplified_coupled_HIV_func <- function(t, y, param){
       y['A_s'] + y['PrEP_g'] + y['PrEP_s']
     
 ## Equations for the general population
-  dS_g = -(betaGG*I_g + betaSG*I_s)*S_g - tau_prep_g*S_g - delta*S_g - theta*S_g + alpha*N + phi_prep_g*PrEP_g
-  dS_s = -(betaGS*I_g)*S_s - tau_prep_s*S_s - delta*S_s + theta*S_g + phi_prep_s*PrEP_s
+  dS_g = -(beta*c_GG*sigma_GG*I_g + 0.5*beta*c_SG*sigma_SG*I_s) - tau_prep_g*S_g - delta*S_g - theta*S_g + alpha*N + phi_prep_g*PrEP_g
+  dS_s = -(0.5*betaGS*I_g) - tau_prep_s*S_s - delta*S_s + theta*S_g + phi_prep_s*PrEP_s
   dPrEP_g = -(phi_prep_g)*PrEP_g + tau_prep_g*S_g - delta*PrEP_g
   dPrEP_s = -(phi_prep_s)*PrEP_s + tau_prep_s*S_s - delta*PrEP_s
-  dI_g = -delta*I_g - mu1*I_g - tau_art_g*I_g + (beta*c_GG*sigma_GG*I_g + 0.5*beta*c_SG*sigma_SG*I_s)*S_g + phi_art_g*A_g - theta*I_g
-  dI_s = -delta*I_s - mu1*I_s - tau_art_s*I_s + (beta*c_GS*sigma_GS*I_g)*S_s + phi_art_s*A_s + theta*I_g
+  dI_g = -delta*I_g - mu1*I_g - tau_art_g*I_g + (beta*c_GG*sigma_GG*I_g + 0.5*beta*c_SG*sigma_SG*I_s) + phi_art_g*A_g - theta*I_g
+  dI_s = -delta*I_s - mu1*I_s - tau_art_s*I_s + (0.5*beta*c_GS*sigma_GS*I_g) + phi_art_s*A_s + theta*I_g
   dA_g = -delta*A_g - mu2*A_g - phi_art_g*A_g + tau_art_g*I_g
   dA_s = -delta*A_s - mu2*A_s - phi_art_s*A_s + tau_art_s*I_s
   dD_g = mu1*(I_g) + mu2*(A_g)
@@ -91,9 +91,9 @@ initial.state <- c("S_g" = 70000000, "I_g" = 56000, "A_g" = 344000, "PrEP_g" = 1
                    "D_g" = 0, "D_s" = 0)
 # What actually happens - as is - data from before the policy was applied
 scenario1 <- run_simp_coupled_HIV_function(beta = 0.0006,
-                                           c_GS = 17.7,
-                                           c_GG = 1,
-                                           c_SG = 1.25,
+                                           c_GS = 950,
+                                           c_GG = 54,
+                                           c_SG = 67.6,
                                            sigma_GS = 0.36,
                                            sigma_GG = 0.27,
                                            sigma_SG = 0.18,
@@ -118,9 +118,9 @@ scenario1 <- run_simp_coupled_HIV_function(beta = 0.0006,
 
 # Scenario with higher ART uptake and retention - Projection scenario for policy change
 scenario2 <- run_simp_coupled_HIV_function(beta = 0.0006,
-                                           c_GS = 17.7,
-                                           c_GG = 1,
-                                           c_SG = 1.25,
+                                           c_GS = 950,
+                                           c_GG = 54,
+                                           c_SG = 67.6,
                                            sigma_GS = 0.36,
                                            sigma_GG = 0.27,
                                            sigma_SG = 0.18,
@@ -208,10 +208,22 @@ ggplot(plot_data2, aes(x= time)) +
        color = "Line Legend Title") +
   scale_color_manual(values = c("blue", "red")) # Set the colors manually
 
+scenario1$incidence_s <- c()
 scenario1 <- add_column(scenario1, "incidence_s" = c(rep.int(0, nrow(scenario1))))
+
 for (i in (2:11)) {
-  beta = 0.0004
-  c_GS = 17.7
+  beta = 0.0006
+  c_GS = 950
   sigma_GS = 0.36
-  scenario1$incidence_s[i] = (beta*c_GS*sigma_GS*scenario1$I_g[i-1])*scenario1$S_s[i-1]
+  scenario1$incidence_s[i] = (0.5*beta*c_GS*sigma_GS*scenario1$I_g[i-1])
+}
+
+scenario1 <- add_column(scenario1, "incidence_g" = c(rep.int(0, nrow(scenario1))))
+for (i in (2:11)) {
+  beta = 0.0006
+  c_GG = 54
+  c_SG = 67.6
+  sigma_GG = 0.27
+  sigma_SG = 0.18
+  scenario1$incidence_g[i] = (beta*c_GG*sigma_GG*scenario1$I_g[i-1] + 0.5*beta*c_SG*sigma_SG*scenario1$I_s[i-1])
 }
