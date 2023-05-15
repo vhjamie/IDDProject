@@ -45,9 +45,10 @@ simplified_coupled_HIV_func <- function(t, y, param){
   dI_s = -delta*I_s - mu1*I_s - tau_art_s*I_s + (beta*c_GS*sigma_GS*I_g)*S_s + phi_art_s*A_s + theta*I_g
   dA_g = -delta*A_g - mu2*A_g - phi_art_g*A_g + tau_art_g*I_g
   dA_s = -delta*A_s - mu2*A_s - phi_art_s*A_s + tau_art_s*I_s
-  dD = mu1*(I_g + I_s) + mu2*(A_g + A_s)
+  dD_g = mu1*(I_g) + mu2*(A_g)
+  dD_s = mu1*(I_s) + mu2*(A_s)
   ## return system of differential equation
-  return(list(c(dS_g, dI_g, dA_g, dPrEP_g,  dS_s, dI_s, dA_s, dPrEP_s, dD)))
+  return(list(c(dS_g, dI_g, dA_g, dPrEP_g,  dS_s, dI_s, dA_s, dPrEP_s, dD_g, dD_s)))
 }
 
 ## Assume frequency dependent because R0 does not change based on population size
@@ -86,9 +87,10 @@ run_simp_coupled_HIV_function <- function(beta, c_GS, c_GG, c_SG, sigma_GS, sigm
   return(as.data.frame(simplified_coupled_HIV_output))
 }
 initial.state <- c("S_g" = 70000000, "I_g" = 56000, "A_g" = 344000, "PrEP_g" = 12768,
-                   "S_s" = 480000, "I_s" = 16800, "A_s" = 103200, "PrEP_s" = 38304, "D" = 0)
+                   "S_s" = 480000, "I_s" = 16800, "A_s" = 103200, "PrEP_s" = 38304, 
+                   "D_g" = 0, "D_s" = 0)
 # What actually happens - as is - data from before the policy was applied
-scenario1 <- run_simp_coupled_HIV_function(beta = 0.0004,
+scenario1 <- run_simp_coupled_HIV_function(beta = 0.0006,
                                            c_GS = 17.7,
                                            c_GG = 1,
                                            c_SG = 1.25,
@@ -112,8 +114,10 @@ scenario1 <- run_simp_coupled_HIV_function(beta = 0.0004,
                                            max.time = 10,
                                            freq.dependent = TRUE)
 
-# Scenario with lower ART uptake and retention - Projection scenario for policy change
-scenario2 <- run_simp_coupled_HIV_function(beta = 0.0004,
+
+
+# Scenario with higher ART uptake and retention - Projection scenario for policy change
+scenario2 <- run_simp_coupled_HIV_function(beta = 0.0006,
                                            c_GS = 17.7,
                                            c_GG = 1,
                                            c_SG = 1.25,
@@ -129,9 +133,9 @@ scenario2 <- run_simp_coupled_HIV_function(beta = 0.0004,
                                            tau_prep_s = 0.00583,
                                            phi_prep_g = 0.015, # Need to test for sensitivity of a range of retention rates
                                            phi_prep_s = 0.015, # 
-                                           tau_art_g = 0.712,
+                                           tau_art_g = 0.3605,
                                            phi_art_g = 0.015,
-                                           tau_art_s = 0.712,
+                                           tau_art_s = 0.3605,
                                            phi_art_s = 0.015,
                                            initial.state = initial.state,
                                            max.time = 10,
@@ -165,3 +169,49 @@ scenario1 <- run_simp_coupled_HIV_function(beta = 0.0004,
 # Deaths averted between scenarios
 # Prevalence in the two populations
 # Incidence 
+scenario1$N_g <- scenario1$A_g + scenario1$S_g + scenario1$I_g + scenario1$PrEP_g
+scenario1$N_s <- scenario1$A_s + scenario1$S_s + scenario1$I_s + scenario1$PrEP_s
+# Generate proportion data
+scenario1$pI_g <- scenario1$I_g / scenario1$N_g
+
+plot(x=scenario1$time, y=scenario1$pI_g)
+
+library(ggplot2)
+plot_data = data_frame("time" = scenario1$time,"pI_g" = scenario1$pI_g)
+plot_data2 = data_frame("time" = scenario1$time, "scenario_1" = scenario1$D,"scenario_2" = scenario2$D)
+
+ggplot(plot_data, aes(x= time)) +
+  geom_line(aes(y = pI_g), color = "blue") +
+  #geom_line(aes(y = y2), color = "red") +
+  labs(title = "Proportion",
+       x = "X Axis Label",
+       y = "Y Axis Label",
+       color = "Line Legend Title") +
+  scale_color_manual(values = c("blue", "red")) # Set the colors manually
+
+ggplot(scenario1, aes(x= time)) +
+  geom_line(aes(y = I_g), color = "blue") +
+  geom_line(aes(y = A_g), color = "red") +
+  geom_line(aes(y = D_g), color = "green") +
+  labs(title = "Infected and on ART",
+       x = "X Axis Label",
+       y = "Y Axis Label",
+       color = "Line Legend Title") +
+  scale_color_manual(values = c("blue", "red", "green")) # Set the colors manually
+
+ggplot(plot_data2, aes(x= time)) +
+  geom_line(aes(y = scenario_1), color = "blue") +
+  geom_line(aes(y = scenario_2), color = "red") +
+  labs(title = "Deaths related to HIV",
+       x = "X Axis Label",
+       y = "Y Axis Label",
+       color = "Line Legend Title") +
+  scale_color_manual(values = c("blue", "red")) # Set the colors manually
+
+scenario1 <- add_column(scenario1, "incidence_s" = c(rep.int(0, nrow(scenario1))))
+for (i in (2:11)) {
+  beta = 0.0004
+  c_GS = 17.7
+  sigma_GS = 0.36
+  scenario1$incidence_s[i] = (beta*c_GS*sigma_GS*scenario1$I_g[i-1])*scenario1$S_s[i-1]
+}
